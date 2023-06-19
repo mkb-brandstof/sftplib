@@ -18,11 +18,7 @@ class Connection:
         if "pkey" in self.__credentials and not isinstance(
             self.__credentials["pkey"], pk.RSAKey
         ):
-            pkey = (
-                "-----BEGIN RSA PRIVATE KEY-----\n"
-                + self.__credentials["pkey"].replace(" ", "\n")
-                + "\n-----END RSA PRIVATE KEY-----"
-            )
+            pkey = self.__credentials["pkey"].replace(" ", "\n")
             with io.StringIO(pkey) as pkey_file:
                 self.__credentials["pkey"] = pk.RSAKey.from_private_key(pkey_file)
         self.client = None
