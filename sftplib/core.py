@@ -45,7 +45,7 @@ class SFTPPath(Base):
 
     def __truediv__(self, key: Union[str, SFTPPath]) -> SFTPPath:
         assert isinstance(key, (SFTPPath, str))
-        return self.__class__(super().__truediv__(key), conn=self.__conn)
+        return self.__class__(super().__truediv__(key), conn=self.__conn, **self.__credentials)
 
     @property
     def hostname(self) -> str:
