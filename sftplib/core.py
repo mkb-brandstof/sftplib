@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from typing import List, BinaryIO, Union, Iterator, TextIO
+from typing import List, BinaryIO, Union, Iterator, TextIO, Optional
 from contextlib import contextmanager
 import pathlib
 import os
@@ -14,10 +14,13 @@ from sftplib.connection import Connection
 
 Base = pathlib.WindowsPath if os.name == "nt" else pathlib.PosixPath
 
+
 class SFTPPath(Base):
     """Extension of pathlib.Path for SFTP file systems."""
 
-    def __init__(self, *args: str, conn: Connection = None, **credentials) -> None:
+    def __init__(
+        self, *args: str, conn: Optional[Connection] = None, **credentials
+    ) -> None:
         self.__conn = conn
         self.__credentials = credentials
         super()._from_parts(args)
@@ -43,9 +46,14 @@ class SFTPPath(Base):
         if self.__conn is not None:
             self.__conn.close()
 
-    def __truediv__(self, key: Union[str, SFTPPath]) -> SFTPPath:
-        assert isinstance(key, (SFTPPath, str))
-        return self.__class__(super().__truediv__(key), conn=self.__conn, **self.__credentials)
+    def __truediv__(self, key: str) -> SFTPPath:
+        if not isinstance(key, str):
+            raise TypeError(
+                f"unsupported operand type(s) for /: 'SFTPPath' and '{type(key).__name__}'"
+            )
+        return self.__class__(
+            super().__truediv__(key.lstrip("/")), conn=self.__conn, **self.__credentials
+        )
 
     @property
     def hostname(self) -> str:
@@ -64,7 +72,7 @@ class SFTPPath(Base):
             str: The directory key.
         """
         try:
-            _key = f"{super().__str__().split('/', 1)[1]}"
+            _key = super().__str__().split('/', 1)[1]
         except IndexError:
             _key = ""
         if self.suffix == "":
@@ -115,9 +123,7 @@ class SFTPPath(Base):
         Returns:
             List[SFTPPath]: All parent paths.
         """
-        return [
-            self.__class__(parent, conn=self.__conn) for parent in super().parents
-        ]
+        return [self.__class__(parent, conn=self.__conn) for parent in super().parents]
 
     def iterdir(self) -> Iterator[SFTPPath]:
         """Iterate over current directory.
@@ -127,7 +133,7 @@ class SFTPPath(Base):
         """
         for key in self.conn.client.listdir(self.key):
             yield self.__class__(self, key, conn=self.__conn)
-    
+
     def rglob(self, pattern: str = None) -> Iterator[SFTPPath]:
         # TODO: implement rglob correctly
         return self.iterdir()
@@ -158,11 +164,11 @@ class SFTPPath(Base):
             return False
         return self in self.parent.iterdir()
 
-    def unlink(self) -> None:  # pylint: disable=arguments-differ
+    def unlink(self) -> None:
         """Delete the current file."""
         self.conn.client.remove(self.key)
 
-    def rmdir(self, _: bool = False) -> None:  # pylint: disable=arguments-differ
+    def rmdir(self, _: bool = False) -> None:
         """Delete the current directory.
 
         Raises:
